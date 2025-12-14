@@ -53,7 +53,6 @@ module = "main"
 
 [tool.flet.macos]
 build_arch = "arm64"
-icon = "src/assets/icon.icns"
 entitlement."com.apple.security.network.client" = true
 entitlement."com.apple.security.network.server" = true
 entitlement."com.apple.security.files.user-selected.read-write" = true
