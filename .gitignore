@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+*.egg
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Flet Build Output
+build/
+.flet/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+
+# Configuration (contains sensitive data)
+.playwright_ui/
+playwright_ui_config.json
+
+# Test Output
+.pytest_cache/
+test_output/
+screenshots/
+*.png
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

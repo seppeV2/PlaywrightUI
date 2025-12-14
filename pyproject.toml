@@ -1,0 +1,72 @@
+[project]
+name = "F&O Automated Testing"
+version = "1.0.0"
+description = "D365 F&O Test Recorder with Playwright - by 9altitudes"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "9altitudes", email = "info@9altitudes.com" }
+]
+dependencies = [
+    # Flet Framework
+    "flet>=0.25.0",
+    
+    # Playwright
+    "playwright>=1.40.0",
+    
+    # Azure SDK
+    "azure-identity>=1.15.0",
+    "azure-keyvault-secrets>=4.7.0",
+    
+    # HTTP requests for Azure DevOps API
+    "requests>=2.31.0",
+    
+    # Configuration management
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    
+    # Testing
+    "pytest>=7.0.0",
+    "pytest-playwright>=0.4.0",
+    "pytest-rerunfailures>=14.0",
+    "pytest-timeout>=2.2.0",
+    
+    # TOTP/MFA
+    "pyotp>=2.9.0",
+    
+    # Utilities
+    "python-dateutil>=2.8.2",
+]
+
+[project.scripts]
+playwright-ui = "main:run"
+
+[tool.flet]
+org = "com.9altitudes"
+product = "Playwright UI"
+company = "9altitudes"
+copyright = "Copyright (C) 2025 9altitudes"
+
+[tool.flet.app]
+path = "."
+module = "main"
+
+[tool.flet.macos]
+build_arch = "arm64"
+icon = "src/assets/icon.icns"
+entitlement."com.apple.security.network.client" = true
+entitlement."com.apple.security.network.server" = true
+entitlement."com.apple.security.files.user-selected.read-write" = true
+
+[tool.flet.splash]
+color = "#1e3a5f"
+dark_color = "#1e3a5f"
+
+[tool.flet.compile]
+app = true
+packages = false
+cleanup = true
+
+[build-system]
+requires = ["flit_core>=3.4"]
+build-backend = "flit_core.buildapi"

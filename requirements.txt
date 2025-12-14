@@ -1,0 +1,28 @@
+# Flet Framework
+flet>=0.21.0
+
+# Playwright
+playwright>=1.40.0
+
+# Azure SDK
+azure-identity>=1.15.0
+azure-keyvault-secrets>=4.7.0
+
+# HTTP requests for Azure DevOps API
+requests>=2.31.0
+
+# Configuration management
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Testing
+pytest>=7.0.0
+pytest-playwright>=0.4.0
+pytest-rerunfailures>=14.0
+pytest-timeout>=2.2.0
+
+# TOTP/MFA
+pyotp>=2.9.0
+
+# Utilities
+python-dateutil>=2.8.2
