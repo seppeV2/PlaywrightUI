@@ -1029,8 +1029,9 @@ class PlaywrightUIApp:
             import subprocess
             
             try:
-                # Build pytest command
-                cmd = ["python", "-m", "pytest", self._selected_test_path, "-v", "--tb=short"]
+                # Build pytest command - use sys.executable for bundled app compatibility
+                import sys
+                cmd = [sys.executable, "-m", "pytest", self._selected_test_path, "-v", "--tb=short"]
                 
                 if self.run_headed_checkbox.value:
                     cmd.append("--headed")
@@ -1650,8 +1651,10 @@ class PlaywrightUIApp:
         self.devops_details_container = content.controls[4].content.controls[-1]
         
         return ft.Container(
-            content=content,
-            padding=24,
+            content=ft.Container(
+                content=content,
+                padding=24,
+            ),
             expand=True,
         )
     
@@ -1814,12 +1817,20 @@ class PlaywrightUIApp:
     
     def _on_test_keyvault(self, e):
         """Test Key Vault connection."""
+        # Skip test if DevOps integration is disabled
+        if self.skip_devops:
+            self.keyvault_status.value = "⚠ DevOps integration is disabled (--skip-devops)"
+            self.keyvault_status.color = theme.WARNING
+            self.page.update()
+            return
+        
         self.keyvault_status.value = "Testing..."
         self.keyvault_status.color = theme.TEXT_SECONDARY
         self.page.update()
         
         def test():
             try:
+                # Test Key Vault connection
                 client = KeyVaultClient(
                     vault_url=self.kv_url_field.value,
                     tenant_id=self.kv_tenant_field.value,
@@ -1828,16 +1839,58 @@ class PlaywrightUIApp:
                 )
                 success, message = client.test_connection()
                 
+                if not success:
+                    def update():
+                        self.keyvault_status.value = f"✗ Connection failed: {message}"
+                        self.keyvault_status.color = theme.ERROR
+                        self.page.update()
+                    update()
+                    return
+                
+                # Connection successful, now check for D365 credentials
+                from src.keyvault import CredentialsManager
+                credentials_manager = CredentialsManager(self.config.key_vault)
+                
+                # Try to get D365 credentials
+                d365_creds = credentials_manager.get_d365_credentials()
+                
+                # Check if all required values are present
+                missing = []
+                found = []
+                
+                if d365_creds.get('url'):
+                    found.append('D365 URL')
+                else:
+                    missing.append('D365 URL')
+                    
+                if d365_creds.get('username'):
+                    found.append('Username')
+                else:
+                    missing.append('Username')
+                    
+                if d365_creds.get('password'):
+                    found.append('Password')
+                else:
+                    missing.append('Password')
+                
+                # Build status message
+                if missing:
+                    status_msg = f"✓ Connected, but missing: {', '.join(missing)}"
+                    status_color = theme.WARNING
+                else:
+                    status_msg = f"✓ Connected! Found all D365 credentials ({', '.join(found)})"
+                    status_color = theme.SUCCESS
+                
                 def update():
-                    self.keyvault_status.value = message
-                    self.keyvault_status.color = theme.SUCCESS if success else theme.ERROR
+                    self.keyvault_status.value = status_msg
+                    self.keyvault_status.color = status_color
                     self.page.update()
                 
                 update()
                 
             except Exception as ex:
                 def update():
-                    self.keyvault_status.value = str(ex)
+                    self.keyvault_status.value = f"✗ Error: {str(ex)}"
                     self.keyvault_status.color = theme.ERROR
                     self.page.update()
                 

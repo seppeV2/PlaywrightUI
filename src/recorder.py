@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Callable, Dict, Any
 from dataclasses import dataclass, field
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -158,13 +159,31 @@ async def d365_auto_login(page, username: str, password: str):
         browser = self.config.recording.browser.value
         return ["--browser", browser]
     
+    def _is_bundled_app(self):
+        """Check if running as a bundled application."""
+        return getattr(sys, 'frozen', False) or '.app/Contents/' in os.path.abspath(__file__)
+    
+    def _get_app_browsers_path(self):
+        """Get the path where app browsers are stored."""
+        import pathlib
+        # Store browsers in user's app support directory
+        if sys.platform == 'darwin':  # macOS
+            app_support = pathlib.Path.home() / 'Library' / 'Application Support' / 'PlaywrightUI' / 'browsers'
+        elif sys.platform == 'win32':  # Windows
+            app_support = pathlib.Path(os.getenv('LOCALAPPDATA', '~')) / 'PlaywrightUI' / 'browsers'
+        else:  # Linux
+            app_support = pathlib.Path.home() / '.local' / 'share' / 'PlaywrightUI' / 'browsers'
+        
+        return str(app_support)
+    
     def _build_codegen_command(
         self,
         output_path: str,
         target_url: str
     ) -> list:
         """Build the playwright codegen command."""
-        cmd = ["playwright", "codegen"]
+        import sys
+        cmd = [sys.executable, "-m", "playwright", "codegen"]
         
         # Add output file
         cmd.extend(["--output", output_path])
@@ -1460,7 +1479,15 @@ def test_{test_func_name}(page: Page):
                 # Launch browser VISIBLE so user can see/complete login
                 print("Launching browser for login...")
                 slow_mo = self.config.recording.slow_mo if self.config.recording.slow_mo > 0 else None
-                browser = browser_launcher.launch(headless=False, slow_mo=slow_mo)
+                
+                # Set browser path to app-specific location only when bundled
+                if self._is_bundled_app():
+                    browsers_path = self._get_app_browsers_path()
+                    os.environ['PLAYWRIGHT_BROWSERS_PATH'] = browsers_path
+                    print(f"Using browsers from: {browsers_path}")
+                
+                launch_args = {"headless": False, "slow_mo": slow_mo}
+                browser = browser_launcher.launch(**launch_args)
                 context = browser.new_context(viewport={"width": width, "height": height})
                 page = context.new_page()
                 
@@ -1552,16 +1579,30 @@ def test_{test_func_name}(page: Page):
             cmd.extend(["--load-storage", storage_state_path])
             
             logger.info(f"Starting codegen: {' '.join(cmd)}")
+            print(f"Command: {' '.join(cmd)}")
+            
+            # Set browser path to app-specific location only when bundled
+            env = os.environ.copy()
+            if self._is_bundled_app():
+                browsers_path = self._get_app_browsers_path()
+                env['PLAYWRIGHT_BROWSERS_PATH'] = browsers_path
+                print(f"Using browsers from: {browsers_path}")
             
             # Run codegen (blocks until user closes the browser)
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                env=os.environ.copy()
+                env=env
             )
             
             self._current_session.raw_output = result.stdout + result.stderr
+            
+            # Log any errors
+            if result.returncode != 0:
+                print(f"\n⚠ Playwright codegen error (exit code {result.returncode}):")
+                print(result.stderr)
+                print(result.stdout)
             
             # Clean up auth state file
             try:

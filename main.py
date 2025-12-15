@@ -21,9 +21,36 @@ import os
 _skip_devops = False
 
 
+def _is_bundled_app():
+    """Check if running as a bundled application."""
+    # When bundled by Flet, the app runs from a specific bundle structure
+    # Check if we're running from a .app bundle or if sys.frozen is set
+    return getattr(sys, 'frozen', False) or '.app/Contents/' in os.path.abspath(__file__)
+
+
+def _get_app_browsers_path():
+    """Get the path where app browsers should be stored."""
+    import pathlib
+    # Store browsers in user's app support directory
+    if sys.platform == 'darwin':  # macOS
+        app_support = pathlib.Path.home() / 'Library' / 'Application Support' / 'PlaywrightUI' / 'browsers'
+    elif sys.platform == 'win32':  # Windows
+        app_support = pathlib.Path(os.getenv('LOCALAPPDATA', '~')) / 'PlaywrightUI' / 'browsers'
+    else:  # Linux
+        app_support = pathlib.Path.home() / '.local' / 'share' / 'PlaywrightUI' / 'browsers'
+    
+    app_support.mkdir(parents=True, exist_ok=True)
+    return str(app_support)
+
+
 def _check_playwright_browsers() -> bool:
     """Check if playwright browsers are installed."""
     try:
+        # Only set custom browser path when running as bundled app
+        if _is_bundled_app():
+            browsers_path = _get_app_browsers_path()
+            os.environ['PLAYWRIGHT_BROWSERS_PATH'] = browsers_path
+        
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
             try:
@@ -73,20 +100,29 @@ def _install_playwright_browsers_with_ui(page: ft.Page):
     
     def install():
         try:
-            progress_text.value = "Installing Chromium browser...\nThis may take a few minutes (downloading ~300MB)"
+            # Set installation path to app-specific location only when bundled
+            if _is_bundled_app():
+                browsers_path = _get_app_browsers_path()
+                os.environ['PLAYWRIGHT_BROWSERS_PATH'] = browsers_path
+                install_location = f" to:\n{browsers_path}"
+            else:
+                install_location = ""
+            
+            progress_text.value = f"Installing Chromium browser{install_location}\n\nDownloading ~300MB, please wait..."
             page.update()
             
             result = subprocess.run(
                 [sys.executable, "-m", "playwright", "install", "chromium"],
                 capture_output=True,
-                text=True
+                text=True,
+                env=os.environ.copy()
             )
             
             if result.returncode == 0:
                 progress_text.value = "✓ Installation complete!"
                 progress_bar.value = 1.0
             else:
-                progress_text.value = f"⚠ Installation failed\n\nPlease run manually:\n{sys.executable} -m playwright install"
+                progress_text.value = f"⚠ Installation failed:\n{result.stderr[:200]}"
             
             page.update()
             
@@ -97,7 +133,7 @@ def _install_playwright_browsers_with_ui(page: ft.Page):
             page.update()
             
         except Exception as e:
-            progress_text.value = f"⚠ Error: {str(e)}\n\nPlease run manually:\n{sys.executable} -m playwright install"
+            progress_text.value = f"⚠ Error: {str(e)}"
             page.update()
             import time
             time.sleep(3)
